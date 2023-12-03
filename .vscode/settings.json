@@ -6,5 +6,10 @@
   },
   "osfdigital.wingman.workspaceIndexingSettings": {
     "indexingState": 0
+  },
+  "osfdigital.wingman.knowledgeBaseSettings": {
+    "salesforceDevEnabled": true,
+    "salesforceHelpEnabled": true,
+    "indexedWorkspaceEnabled": false
   }
 }
