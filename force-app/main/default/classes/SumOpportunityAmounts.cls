@@ -3,15 +3,12 @@
 public class SumOpportunityAmounts implements Database.Batchable<sObject>, Schedulable {
 
     public Database.QueryLocator start(Database.BatchableContext bc) {
-        // collect the batches of records or objects to be passed to execute
 
         return Database.getQueryLocator('SELECT Id, AccountId, Amount, StageName, CreatedDate, CloseDate FROM Opportunity WHERE CreatedDate = THIS_MONTH OR CloseDate = THIS_MONTH');
     }
 
     public void execute(Database.BatchableContext bc, List<Opportunity> listOpp) {
         
-        // List<Messaging.SingleEmailMessage> emailList = new List<Messaging.SingleEmailMessage>();
-        // EmailTemplate emailTemp = [SELECT Id, Subject, Body FROM EmailTemplate WHERE DeveloperName = ''];
         System.debug('List Opp: '+listOpp);
 
         Set<Id> oppAccountIds = new Set<Id>();
@@ -24,10 +21,10 @@ public class SumOpportunityAmounts implements Database.Batchable<sObject>, Sched
         List<Contact> listContact = new List<Contact>([SELECT Id, Primary_Contact__c, Email FROM Contact WHERE AccountId IN :listAccount AND Primary_Contact__c = true]);
         System.debug('List Ctt '+listContact);
 
+        List<Account> amountsToUpdate = new List<Account>();
         if(!listAccount.isEmpty()) {
             for(Account account:listAccount) {
 
-                List<Account> amountsToUpdate = new List<Account>();
                 Double aWon=0;
                 Double aLost=0;
                 Double aOpen=0;
@@ -52,28 +49,58 @@ public class SumOpportunityAmounts implements Database.Batchable<sObject>, Sched
                 System.debug('AmountOppOpen: '+account.AmountOppOpen__c);
                 
                 amountsToUpdate.add(account);
-                System.debug('Contas para atualizar: '+account);
-                //--------------------------------------------------------------------------------------------
-                // for(Contact c:account.contacts){
-                //     if(c.Primary_Contact__c && !String.isBlank(c.Email)){
-                //         Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
-                //         mail.setTemplateId(emailTemp.Id);
-                //         mail.setTargetObjectId(con.Id);
-                //         emailList.add(mail);
-                //     }else {
-                //         System.debug('Erro. O contato não possui e-mail.');
-                //     }
-                // }
+                System.debug('Contas para atualizar: '+account);    
             }
-            // if(!emailList.isEmpty()){
-            //     Messaging.sendEmail(emailList);
-            // } 
+
+            if(!amountsToUpdate.isEmpty()) {
+                update amountsToUpdate;
+            }
+        }
+        sendEmails(listAccount);
+    }
+
+    public void finish(Database.BatchableContext bc){}
+
+    public void execute(SchedulableContext ctx) {
+        
+        // Daily at 10:00 AM
+        String cronDaily = '0 0 10 * * ?';
+
+        // Every Friday at 1:00 PM
+        //String cronWeekly = '0 0 13 ? * FRI';
+
+        // Last Friday of the month at 6:00 PM
+        //String cronMonthly = '0 0 18 ? * 6L';
+
+        String jobName = 'SumOpportunityAmountsJob';
+        System.schedule(jobName, cronDaily, this);
+    }
+
+    private void sendEmails(List<Account> listAccount) {
+
+        List<Messaging.SingleEmailMessage> emailMessages = new List<Messaging.SingleEmailMessage>();
+    
+        if(!listAccount.isEmpty()){
+            for(Account account:listAccount){
+                for(Contact c:account.contacts){ 
+                    if(c.Primary_Contact__c){
+
+                        Messaging.SingleEmailMessage email = new Messaging.SingleEmailMessage();
+                        email.setToAddresses(new String[]{c.Email});
+                        email.setTemplateId('00XHn000001nuHJ');
+                        emailMessages.add(email);
+                        break;
+                    }     
+                }
+            }
+        }
+
+        if (!emailMessages.isEmpty()) {
+            try {
+                Messaging.sendEmail(emailMessages);
+            } catch (Exception e) {
+                System.debug('Erro ao enviar e-mail: ' + e.getMessage());
+            }
         }
     }
-
-    public void finish(Database.BatchableContext bc){
-        
-    }
-
-    public void execute(SchedulableContext ctx) {}
 }

@@ -1,7 +1,8 @@
 //Practical Exercise 1: Apex Triggers
 
 public class ReplicatePrimaryContactPhone implements Queueable{
-    
+
+    private static Boolean jobEnqueued = false;
     private Set<Id> accountIds;
     private List<Account> listAccounts;
 
@@ -17,6 +18,7 @@ public class ReplicatePrimaryContactPhone implements Queueable{
     }
 
     public void execute(QueueableContext context) {
+        jobEnqueued = true;
 
         List<Contact> cttsToUpdate = new List<Contact>();
 
@@ -40,6 +42,10 @@ public class ReplicatePrimaryContactPhone implements Queueable{
                 }    
             }
         }
-        update cttsToUpdate;    
+        update cttsToUpdate;
+    }
+
+    public static Boolean isJobEnqueued() {
+        return jobEnqueued;
     }
 }
